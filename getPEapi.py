@@ -23,7 +23,7 @@ api = APISession(url)
 dataframes = []
 # Loop para obter dados da API
 
-for i in range(3000, 3500): #ajustar o range conforme necessário. Padrão 1 a 3500
+for i in range(1, 3500): #ajustar o range conforme necessário. Padrão 1 a 3500
     try:
         response = api.get(f'{endpoint}?page={i}')
         
