@@ -1,6 +1,10 @@
 import json
 import pandas as pd
+import logging
+import asyncio
 from APISession import APISession
+
+logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 url = 'https://transparencia2.pi.gov.br/api/v1/'
 
@@ -15,49 +19,64 @@ while True:
     if mes_in.isdigit() and 1 <= int(mes_in) <= 12:
         mes_in = mes_in.zfill(2)
         break
-    
+
 endpoint = f"servidores/{ano_in}/{mes_in}/"
+MAX_PAGES = 3500
+CONCURRENCY = 10  # Quantas requisições simultâneas
 
-api = APISession(url)
+async def fetch_page(api, endpoint, page, semaphore):
+    url = f"{endpoint}?page={page}"
+    async with semaphore:
+        try:
+            response = await api.get(url)
+            if response is None:
+                logging.error(f"Erro ao obter dados da API na página {page}. RESPONSE is None.")
+                return None
+            if response.status_code == 404:
+                # Nenhum dado a partir desta página
+                return "404"
 
-dataframes = []
-# Loop para obter dados da API
+            print(f"Obtendo dados da página {page}...")
+            
+            data = json.loads(response.text)
+            if not data or 'results' not in data or not data['results']:
+                return None
+            df = pd.json_normalize(data['results'])
+            return df
+        except Exception as e:
+            logging.error(f"Erro ao processar página {page}: {e}")
+            return None
 
-for i in range(1, 3500): #ajustar o range conforme necessário. Padrão 1 a 3500
-    try:
-        response = api.get(f'{endpoint}?page={i}')
-        
-        if response.status_code == 404:
-            print(f"Não há mais dados na página {i}.")
+async def main():
+    api = APISession(url)
+    semaphore = asyncio.Semaphore(CONCURRENCY)
+    dataframes = []
+    tasks = []
+
+    # Cria tarefas para todas as páginas
+    for i in range(1, MAX_PAGES+1):
+        tasks.append(fetch_page(api, endpoint, i, semaphore))
+
+    # Executa em paralelo (espera todas terminarem)
+    responses = await asyncio.gather(*tasks)
+
+    # Processa resultados
+    for idx, res in enumerate(responses, 1):
+        if isinstance(res, str) and res == "404":
+            print(f"Parando na página {idx}: status 404.")
             break
-        
-        if response is None:
-            print("Erro ao obter dados da API ou retorno vazio pelo fim dos dos dados.")
             break
-        
-        data = json.loads(response.text)
-        if not data:
-            print("Nenhum dado encontrado.")
-            break
-        
-        df = pd.json_normalize(data['results'])
-        dataframes.append(df)
-    except json.JSONDecodeError as e:
-        print(f"Erro ao decodificar JSON: {e}")
+        if res is not None:
+            dataframes.append(res)
 
-    except Exception as e:
-        print(f"Erro inesperado: {e} ou página {i} não existe.")
-        break
-    
     if dataframes:
-        # Salvar em um arquivo CSV
         final_df = pd.concat(dataframes, ignore_index=True)
         print(f"Total de registros obtidos: {len(final_df)}")
+        final_df.to_csv(f'PE_{ano_in}{mes_in}.csv', index=False, encoding='utf-8-sig')
     else:
         print("Nenhum dado encontrado.")
 
-api.close()
+    await api.close()
 
-#Salvar o DataFrame em um arquivo CSV
-final_df.to_csv(f'PE_{ano_in}{mes_in}.csv', index=False, encoding='utf-8-sig')
-
+if __name__ == "__main__":
+    asyncio.run(main())
