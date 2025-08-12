@@ -65,14 +65,15 @@ async def main():
         if isinstance(res, str) and res == "404":
             print(f"Parando na página {idx}: status 404.")
             break
-            break
+        
         if res is not None:
             dataframes.append(res)
 
     if dataframes:
         final_df = pd.concat(dataframes, ignore_index=True)
         print(f"Total de registros obtidos: {len(final_df)}")
-        final_df.to_csv(f'PE_{ano_in}{mes_in}.csv', index=False, encoding='utf-8-sig')
+        final_df.insert(loc=2, column='mes', value=mes_in)
+        final_df.to_csv(f'PI_{ano_in}{mes_in}.csv', index=False, encoding='utf-8-sig')
     else:
         print("Nenhum dado encontrado.")
 
