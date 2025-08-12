@@ -88,7 +88,13 @@ py unir_arq.py
 
 ### 2. Inserção no banco de dados
 
-Abre-se a ide do Postgres (PgAdmin4 no meu caso) e após conectar no banco de dados abre-se uma query tool:
+Como o banco Postgres está em um container no Docker é feito a cópia direto para o container:
+
+```powershell
+docker cp "C:\BASES_MEU\Automacao-de-Coleta-de-Dados-Governamentais---PI\PI_2024_unido.csv" postgresdb:/var/lib/postgresql/data/PI_2024_unido.csv
+```
+
+Para inserir no banco de dados abre-se a ide do Postgres (PgAdmin4 no meu caso) e após conectar no banco de dados abre-se uma query tool:
 
 ```sql
 COPY servidores_estaduais_pi
