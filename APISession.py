@@ -25,7 +25,7 @@ class APISession:
             logging.error(f"Erro GET em {url}: {e}")
             return None
 
-    async def post(self, endpoint: str, data: Optional[dict] = None, json: Optional[dict] = None, timeout: int = 60):
+    async def post(self, endpoint: str, data: Optional[dict] = None, json: Optional[dict] = None, timeout: int = 15):
         url = self.base_url + endpoint
         try:
             response = await self.client.post(url, data=data, json=json, timeout=timeout)
